@@ -1,0 +1,12 @@
+﻿.venv/
+.venv-1/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.db
+*.sqlite
+*.sqlite3
+student_progress.json

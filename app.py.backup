@@ -1,0 +1,1095 @@
+from chatbot import get_career_guidance
+from html import escape
+from textwrap import dedent
+
+import pandas as pd
+
+import plotly.express as px
+
+import streamlit as st
+
+from model import load_careers, recommend_careers, create_learning_roadmap
+from resources import get_learning_resources
+# --------------------------------------------------
+
+# PAGE CONFIGURATION
+
+# --------------------------------------------------
+
+st.set_page_config(
+
+    page_title="Skillora AI | Career Intelligence",
+
+    page_icon="🎯",
+
+    layout="wide",
+
+    initial_sidebar_state="expanded",
+
+)
+
+# --------------------------------------------------
+
+# CUSTOM CSS
+
+# --------------------------------------------------
+
+st.markdown(
+    dedent(
+        """\
+        <style>
+
+    @import url(
+
+      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
+
+    );
+
+    .stApp {
+
+        background: #0b1120;
+
+        color: #e5e7eb;
+
+        font-family: 'Inter', sans-serif;
+
+    }
+
+    [data-testid="stSidebar"] {
+
+        background: #111a2e;
+
+        border-right: 1px solid #25324a;
+
+    }
+
+    .hero {
+
+        padding: 30px;
+
+        border-radius: 22px;
+
+        background: linear-gradient(
+
+            125deg, #172554, #312e81, #164e63
+
+        );
+
+        border: 1px solid #334a75;
+
+        margin-bottom: 24px;
+
+    }
+
+    .hero h1 {
+
+        color: #ffffff;
+
+        font-size: 38px;
+
+        font-weight: 800;
+
+        margin: 0;
+
+    }
+
+    .hero p {
+
+        color: #dbeafe;
+
+        font-size: 15px;
+
+        margin-top: 10px;
+
+        margin-bottom: 0;
+
+    }
+
+    .eyebrow {
+
+        color: #67e8f9;
+
+        font-size: 12px;
+
+        font-weight: 700;
+
+        letter-spacing: 2px;
+
+        text-transform: uppercase;
+
+        margin-bottom: 10px;
+
+    }
+
+    .section-label {
+
+        color: #f8fafc;
+
+        font-size: 22px;
+
+        font-weight: 700;
+
+        margin-top: 12px;
+
+        margin-bottom: 8px;
+
+    }
+
+    .small-muted {
+
+        color: #94a3b8;
+
+        font-size: 13px;
+
+    }
+
+    div[data-testid="stMetric"] {
+
+        background: #111a2e;
+
+        border: 1px solid #25324a;
+
+        border-radius: 15px;
+
+        padding: 18px;
+
+    }
+
+    div[data-testid="stMetricLabel"] {
+
+        color: #94a3b8;
+
+    }
+
+    div[data-testid="stMetricValue"] {
+
+        color: #67e8f9;
+
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+
+        background: #111a2e;
+
+        border-color: #25324a;
+
+        border-radius: 16px;
+
+    }
+
+    .career-rank {
+
+        color: #67e8f9;
+
+        font-size: 12px;
+
+        font-weight: 700;
+
+        letter-spacing: 1px;
+
+        text-transform: uppercase;
+
+    }
+
+    .skill-tag {
+
+        display: inline-block;
+
+        background: #1e293b;
+
+        border: 1px solid #334155;
+
+        color: #bae6fd;
+
+        padding: 5px 9px;
+
+        border-radius: 8px;
+
+        margin: 3px 4px 3px 0;
+
+        font-size: 12px;
+
+    }
+
+    .footer {
+
+        text-align: center;
+
+        color: #64748b;
+
+        font-size: 12px;
+
+        padding: 24px 0 8px 0;
+
+    }
+
+    .stButton > button {
+
+        border-radius: 10px;
+
+        font-weight: 700;
+
+        min-height: 43px;
+
+    }
+
+        </style>
+        """
+    ),
+    unsafe_allow_html=True,
+)
+
+# --------------------------------------------------
+
+# LOAD DATA
+
+# --------------------------------------------------
+
+@st.cache_data
+
+def get_career_data():
+
+    return load_careers()
+
+try:
+
+    career_data = get_career_data()
+
+except Exception as error:
+
+    st.error(f"Could not load career dataset: {error}")
+
+    st.stop()
+
+all_skills = sorted(
+
+    {
+
+        skill
+
+        for skill_list in career_data["skill_list"]
+
+        for skill in skill_list
+
+    }
+
+)
+
+# --------------------------------------------------
+
+# HERO HEADER
+
+# --------------------------------------------------
+
+st.markdown(
+    dedent(
+        """        <div class="hero">
+            <div class="eyebrow">AI-POWERED CAREER INTELLIGENCE</div>
+            <h1>Skillora AI 🎯</h1>
+            <p>
+                Discover career paths, understand your skill gaps,
+                and build a learning plan for your future.
+            </p>
+        </div>
+        """
+    ),
+    unsafe_allow_html=True,
+)
+
+# --------------------------------------------------
+
+# SIDEBAR INPUTS
+
+# --------------------------------------------------
+
+with st.sidebar:
+
+    st.markdown("## 🎯 Career Analyzer")
+
+    st.caption("Tell us what skills you currently know.")
+
+    selected_skills = st.multiselect(
+
+        "Select your skills",
+
+        options=all_skills,
+
+        help="Choose all skills you have learned.",
+
+    )
+
+    custom_skills_text = st.text_area(
+
+        "Add other skills",
+
+        placeholder="Example: Python, SQL, communication",
+
+        help="Separate multiple skills using commas or semicolons.",
+
+    )
+
+    st.markdown("---")
+
+    analyze_button = st.button(
+
+        "🚀 Analyze My Career",
+
+        type="primary",
+
+        use_container_width=True,
+
+    )
+
+    st.caption(
+
+        "Your results depend on the skills and career information "
+
+        "in the current dataset."
+
+    )
+
+# --------------------------------------------------
+
+# RUN ANALYSIS
+
+# --------------------------------------------------
+
+if analyze_button:
+
+    custom_skills = [
+
+        skill.strip().lower()
+
+        for skill in custom_skills_text.replace(";", ",").split(",")
+
+        if skill.strip()
+
+    ]
+
+    user_skills = list(
+
+        dict.fromkeys(
+
+            [skill.lower() for skill in selected_skills]
+
+            + custom_skills
+
+        )
+
+    )
+
+    if not user_skills:
+
+        st.warning(
+
+            "Please select at least one skill or enter a custom skill."
+
+        )
+
+    else:
+
+        try:
+
+            with st.spinner("Analyzing your skills and career matches..."):
+
+                results = recommend_careers(user_skills)
+
+            st.session_state["skillora_results"] = results
+
+            st.session_state["skillora_skills"] = user_skills
+
+        except Exception as error:
+
+            st.error(f"Analysis failed: {error}")
+
+# --------------------------------------------------
+
+# DISPLAY RESULTS
+
+# --------------------------------------------------
+
+if "skillora_results" not in st.session_state:
+
+    st.markdown(
+
+        '<div class="section-label">Welcome to your career dashboard</div>',
+
+        unsafe_allow_html=True,
+
+    )
+
+    st.write(
+
+        "Select your skills in the sidebar and click "
+
+        "**Analyze My Career** to discover suitable career paths."
+
+    )
+
+    st.markdown("### ✨ What you will discover")
+
+    feature_1, feature_2, feature_3 = st.columns(3)
+
+    with feature_1:
+
+        with st.container(border=True):
+
+            st.subheader("🎯 Career Matches")
+
+            st.write(
+
+                "Explore career options ranked using your skills "
+
+                "and the available career data."
+
+            )
+
+    with feature_2:
+
+        with st.container(border=True):
+
+            st.subheader("🧩 Skill Gap")
+
+            st.write(
+
+                "Identify the skills you already have and the "
+
+                "skills listed as requirements for a career."
+
+            )
+
+    with feature_3:
+
+        with st.container(border=True):
+
+            st.subheader("📚 Learning Resources")
+
+            st.write(
+
+                "Review suggested resources supplied by the "
+
+                "current career dataset."
+
+            )
+
+    st.stop()
+
+results = st.session_state["skillora_results"]
+
+user_skills = st.session_state["skillora_skills"]
+
+top_career = results.iloc[0]
+
+best_match = str(top_career["career"])
+
+best_score = float(top_career["match_score"])
+
+best_coverage = float(top_career["skill_coverage"])
+
+# --------------------------------------------------
+
+# SUMMARY METRICS
+
+# --------------------------------------------------
+
+st.markdown(
+
+    '<div class="section-label">Your Career Overview</div>',
+
+    unsafe_allow_html=True,
+
+)
+
+metric_1, metric_2, metric_3, metric_4 = st.columns(4)
+
+with metric_1:
+
+    st.metric("Skills Entered", len(user_skills))
+
+with metric_2:
+
+    st.metric("Career Paths", len(results))
+
+with metric_3:
+
+    st.metric("Top Career Match", best_match)
+
+with metric_4:
+
+    st.metric("Top Match Score", f"{best_score:.1f}/100")
+
+st.caption(
+
+    "Match score is a text-similarity score, not a probability "
+
+    "of employment or a guarantee of career suitability."
+
+)
+
+# --------------------------------------------------
+
+# CAREER RECOMMENDATION CARDS
+
+# --------------------------------------------------
+
+st.markdown(
+
+    '<div class="section-label">🏆 Recommended Career Paths</div>',
+
+    unsafe_allow_html=True,
+
+)
+
+st.caption("Your top three matches from the current dataset.")
+
+top_three = results.head(3)
+
+card_columns = st.columns(len(top_three))
+
+for rank, (_, career) in enumerate(top_three.iterrows(), start=1):
+
+    with card_columns[rank - 1]:
+
+        with st.container(border=True):
+
+            st.markdown(
+
+                f'<div class="career-rank">CAREER MATCH #{rank}</div>',
+
+                unsafe_allow_html=True,
+
+            )
+
+            st.subheader(str(career["career"]))
+
+            st.metric(
+
+                "Similarity Score",
+
+                f'{float(career["match_score"]):.1f}/100',
+
+            )
+
+            st.progress(
+
+                min(
+
+                    max(float(career["skill_coverage"]) / 100, 0.0),
+
+                    1.0,
+
+                )
+
+            )
+
+            st.caption(
+
+                f'Skill coverage: {float(career["skill_coverage"]):.1f}%'
+
+            )
+
+            st.write(str(career["description"]))
+
+            st.markdown("**Matched skills**")
+
+            matched = career["matched_skills"]
+
+            if matched:
+
+                tags = "".join(
+
+                    f'<span class="skill-tag">{escape(str(skill))}</span>'
+
+                    for skill in matched
+
+                )
+
+                st.markdown(tags, unsafe_allow_html=True)
+
+            else:
+
+                st.caption("No exact skill matches found.")
+
+            with st.expander("View missing skills and resources"):
+
+                missing = career["missing_skills"]
+
+                st.markdown("**Skills to develop**")
+
+                if missing:
+
+                    for skill in missing:
+
+                        st.write(f"• {skill}")
+
+                else:
+
+                    st.success("All listed required skills match!")
+
+                st.markdown("**Suggested learning resources**")
+
+                st.write(career["learning_resources"])
+
+# --------------------------------------------------
+
+# INTERACTIVE CHARTS
+
+# --------------------------------------------------
+
+st.markdown(
+
+    '<div class="section-label">📊 Career Analytics</div>',
+
+    unsafe_allow_html=True,
+
+)
+
+chart_left, chart_right = st.columns(2)
+
+with chart_left:
+
+    chart_data = results.head(6).sort_values("match_score")
+
+    match_chart = px.bar(
+
+        chart_data,
+
+        x="match_score",
+
+        y="career",
+
+        orientation="h",
+
+        title="Career Similarity Scores",
+
+        labels={
+
+            "match_score": "Similarity Score",
+
+            "career": "Career Path",
+
+        },
+
+        text_auto=".1f",
+
+        color="match_score",
+
+        color_continuous_scale=["#2563eb", "#22d3ee"],
+
+    )
+
+    match_chart.update_layout(
+
+        template="plotly_dark",
+
+        paper_bgcolor="rgba(0,0,0,0)",
+
+        plot_bgcolor="rgba(0,0,0,0)",
+
+        margin=dict(l=10, r=10, t=55, b=10),
+
+        coloraxis_showscale=False,
+
+        xaxis_range=[0, 100],
+
+    )
+
+    st.plotly_chart(
+
+        match_chart,
+
+        use_container_width=True,
+
+    )
+
+with chart_right:
+
+    coverage_data = results.head(6).sort_values("skill_coverage")
+
+    coverage_chart = px.bar(
+
+        coverage_data,
+
+        x="skill_coverage",
+
+        y="career",
+
+        orientation="h",
+
+        title="Required Skill Coverage",
+
+        labels={
+
+            "skill_coverage": "Coverage (%)",
+
+            "career": "Career Path",
+
+        },
+
+        text_auto=".1f",
+
+        color="skill_coverage",
+
+        color_continuous_scale=["#7c3aed", "#34d399"],
+
+    )
+
+    coverage_chart.update_layout(
+
+        template="plotly_dark",
+
+        paper_bgcolor="rgba(0,0,0,0)",
+
+        plot_bgcolor="rgba(0,0,0,0)",
+
+        margin=dict(l=10, r=10, t=55, b=10),
+
+        coloraxis_showscale=False,
+
+        xaxis_range=[0, 100],
+
+    )
+
+    st.plotly_chart(
+
+        coverage_chart,
+
+        use_container_width=True,
+
+    )
+
+# --------------------------------------------------
+
+# SKILL GAP ANALYSIS
+
+# --------------------------------------------------
+
+st.markdown(
+
+    '<div class="section-label">🧩 Skill Gap Analysis</div>',
+
+    unsafe_allow_html=True,
+
+)
+
+career_names = results["career"].tolist()
+
+selected_career_name = st.selectbox(
+
+    "Choose a career to inspect",
+
+    options=career_names,
+
+    index=0,
+
+)
+
+selected_career_row = results[
+
+    results["career"] == selected_career_name
+
+].iloc[0]
+
+matched_skills = selected_career_row["matched_skills"]
+
+missing_skills = selected_career_row["missing_skills"]
+
+gap_left, gap_right = st.columns(2)
+
+with gap_left:
+
+    with st.container(border=True):
+
+        st.subheader("✅ Skills You Have")
+
+        st.metric("Matched Skills", len(matched_skills))
+
+        if matched_skills:
+
+            for skill in matched_skills:
+
+                st.write(f"✓ {skill}")
+
+        else:
+
+            st.info("No exact matches for this career yet.")
+
+with gap_right:
+
+    with st.container(border=True):
+
+        st.subheader("📌 Skills to Learn")
+
+        st.metric("Missing Skills", len(missing_skills))
+
+        if missing_skills:
+
+            for skill in missing_skills:
+
+                st.write(f"• {skill}")
+
+        else:
+
+            st.success("You match all listed skills for this career.")
+
+st.info(
+
+    "Skill coverage compares your exact skill matches with the "
+
+    "skills listed for the selected career. It does not measure "
+
+    "your real-world proficiency."
+
+)
+
+# --------------------------------------------------
+
+# PERSONALIZED LEARNING ROADMAP & PROGRESS TRACKER
+
+# --------------------------------------------------
+
+st.markdown(
+    '<div class="section-label">🗺️ Personalized Learning Roadmap</div>',
+    unsafe_allow_html=True,
+)
+
+st.write(
+    f"Your learning plan for **{selected_career_name}** is based on "
+    "the skills listed as missing in the current career dataset."
+)
+
+roadmap_steps = create_learning_roadmap(selected_career_row)
+
+if not roadmap_steps:
+    st.success(
+        "Great work! You match all skills listed for this career. "
+        "Explore advanced projects and keep practicing to strengthen your skills."
+    )
+else:
+    st.caption(
+        "Tick a checkbox when you feel you have completed a skill. "
+        "Progress is saved for this session in the current Streamlit app."
+    )
+
+    progress_key = f"skillora_roadmap_{selected_career_name}"
+    if progress_key not in st.session_state:
+        st.session_state[progress_key] = []
+
+    completed_skills = set(st.session_state[progress_key])
+    completed_count = sum(
+        1 for step in roadmap_steps if step["skill"].lower() in completed_skills
+    )
+    progress_percent = completed_count / len(roadmap_steps)
+
+    progress_col1, progress_col2 = st.columns([3, 1])
+    with progress_col1:
+        st.progress(progress_percent)
+    with progress_col2:
+        st.metric("Roadmap Progress", f"{progress_percent * 100:.0f}%")
+
+    for step in roadmap_steps:
+        skill_key = step["skill"].lower()
+        is_completed = skill_key in completed_skills
+
+        with st.container(border=True):
+            step_col, status_col = st.columns([4, 1])
+            with step_col:
+                checked = st.checkbox(
+                    f"Step {step['step']}: Learn {step['skill']}",
+                    value=is_completed,
+                    key=f"{progress_key}_{skill_key}",
+                )
+            with status_col:
+                st.caption("Completed" if checked else "In progress")
+
+            if checked and skill_key not in completed_skills:
+                completed_skills.add(skill_key)
+            elif not checked and skill_key in completed_skills:
+                completed_skills.remove(skill_key)
+
+    st.session_state[progress_key] = sorted(completed_skills)
+
+    completed_count = sum(
+        1 for step in roadmap_steps if step["skill"].lower() in completed_skills
+    )
+    progress_percent = completed_count / len(roadmap_steps)
+
+    st.progress(progress_percent)
+    st.caption(
+        f"{completed_count} of {len(roadmap_steps)} learning steps completed."
+    )
+
+with st.expander("📚 Learning resources for this career"):
+    st.write(selected_career_row["learning_resources"])
+    st.caption(
+        "Use the listed resources as a starting point and check that each "
+        "resource is appropriate for your current level."
+    )
+
+# --------------------------------------------------
+# SMART LEARNING RESOURCES
+# --------------------------------------------------
+
+st.markdown(
+    '<div class="section-label">📚 Smart Learning Resources</div>',
+    unsafe_allow_html=True,
+)
+
+st.caption(
+    "Explore learning materials for the skills required by your selected career."
+)
+
+if missing_skills:
+    st.write(
+        f"Learning resources for **{selected_career_name}**"
+    )
+
+    for skill in missing_skills:
+        resources = get_learning_resources(skill)
+
+        with st.expander(f"📘 Learn {str(skill).title()}"):
+            if resources:
+                for resource in resources:
+                    st.markdown(f"**{resource['title']}**")
+                    st.caption(
+                        f"Provider: {resource['provider']} "
+                        f"• Level: {resource['level']}"
+                    )
+                    st.markdown(
+                        f"[Open Learning Resource ↗]({resource['url']})"
+                    )
+            else:
+                st.info("No learning resources available yet.")
+else:
+    st.success(
+        "You match all the listed skills for this career. "
+        "Explore advanced topics to continue learning!"
+    )
+
+
+# --------------------------------------------------
+
+# EXPORT RESULTS
+
+# --------------------------------------------------
+
+st.markdown(
+
+    '<div class="section-label">📥 Export Your Results</div>',
+
+    unsafe_allow_html=True,
+
+)
+
+export_columns = [
+
+    "career",
+
+    "description",
+
+    "level",
+
+    "match_score",
+
+    "skill_coverage",
+
+    "matched_skills",
+
+    "missing_skills",
+
+    "learning_resources",
+
+]
+
+export_data = results[export_columns].copy()
+
+for column in ["matched_skills", "missing_skills"]:
+
+    export_data[column] = export_data[column].apply(
+
+        lambda values: ", ".join(values)
+
+    )
+
+csv_data = export_data.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+
+    label="⬇️ Download Career Analysis (CSV)",
+
+    data=csv_data,
+
+    file_name="skillora_career_analysis.csv",
+
+    mime="text/csv",
+
+    type="primary",
+
+)
+
+st.markdown(
+    dedent(
+        """\
+        <div class="footer">
+
+        Skillora AI • Career Intelligence & Skill Gap Analyzer
+
+        <br>
+
+        Built with Python, Streamlit, Pandas, Scikit-learn and Plotly
+
+        </div>
+        """
+    ),
+    unsafe_allow_html=True,
+)
+
+
+# --------------------------------------------------
+# AI CAREER GUIDANCE CHATBOT
+# --------------------------------------------------
+
+st.markdown("---")
+st.markdown("## 🤖 Skillora AI Career Assistant")
+
+st.caption(
+    "Ask questions about careers, skill gaps, learning plans, and interviews."
+)
+
+if "skillora_chat_history" not in st.session_state:
+    st.session_state["skillora_chat_history"] = []
+
+# Keep the latest dashboard context available to the assistant.
+chat_career = selected_career_name if "selected_career_name" in globals() else best_match
+chat_missing_skills = (
+    missing_skills if "missing_skills" in globals() else []
+)
+
+user_question = st.chat_input(
+    "Ask a career question..."
+)
+
+if user_question:
+    st.session_state["skillora_chat_history"].append(
+        {"role": "user", "content": user_question}
+    )
+
+    answer = get_career_guidance(
+        question=user_question,
+        user_skills=st.session_state.get("skillora_skills", []),
+        career=chat_career,
+        missing_skills=chat_missing_skills,
+    )
+
+    st.session_state["skillora_chat_history"].append(
+        {"role": "assistant", "content": answer}
+    )
+
+for message in st.session_state["skillora_chat_history"]:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+if st.button("🗑️ Clear Chat"):
+    st.session_state["skillora_chat_history"] = []
+    st.rerun()
+

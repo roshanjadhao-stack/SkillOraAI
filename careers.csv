@@ -1,0 +1,8 @@
+
+career,description,skills,level,learning_resources
+Machine Learning Engineer,Build predictive models and deploy ML solutions,python;machine learning;scikit-learn;pandas;numpy;statistics;sql;model evaluation;git,Entry Level,Python fundamentals;Statistics;Scikit-learn projects;Model deployment
+Data Scientist,Analyze data and build statistical and machine learning solutions,python;statistics;pandas;numpy;sql;data visualization;machine learning;scikit-learn;plotly,Entry Level,Statistics;Pandas;SQL;Exploratory data analysis
+Data Analyst,Analyze business data and create reports and dashboards,sql;excel;power bi;python;pandas;data visualization;statistics;communication,Entry Level,SQL;Excel;Power BI;Analytics portfolio
+AI Engineer,Build AI applications using language models and machine learning,python;machine learning;nlp;llm;api integration;scikit-learn;git;model evaluation,Entry Level,Python;NLP;LLM APIs;AI application projects
+Data Engineer,Build data pipelines and maintain data infrastructure,python;sql;etl;data modeling;databases;git;cloud;apache spark,Entry Level,SQL;ETL;Data pipelines;Cloud fundamentals
+Python Developer,Develop and maintain Python applications and APIs,python;oop;sql;api development;git;testing;debugging;databases,Entry Level,Python OOP;REST APIs;Testing;Git
