@@ -747,26 +747,26 @@ if page in ("DSA Practice", "Aptitude Practice"):
 import base64
 import html
 
+
 if page == "My Profile":
     student = st.session_state.get("student")
 
     if not student:
-        st.warning("Please log in to view your profile.")
+        st.warning("Please log in first.")
         st.stop()
 
     is_demo = student.get("is_demo", False)
 
-if is_demo:
-    profile = {}
-    st.info(
-        "Demo Mode: Profile changes are temporary "
-        "and will not be saved to a student account."
-    )
-else:
-    profile = load_student_profile(student["id"]) or {}
+    if is_demo:
+        profile = {}
+        st.info(
+            "Demo Mode: Profile changes are temporary "
+            "and will not be saved to a student account."
+        )
+    else:
+        profile = load_student_profile(student["id"]) or {}
 
-    st.title("👤 My Professional Profile")
-    st.caption("Manage your personal details, education, skills and achievements.")
+    # Keep the remaining My Profile code below this line
 
     # Profile photo storage in session state
     photo_key = f"profile_photo_{student['id']}"
