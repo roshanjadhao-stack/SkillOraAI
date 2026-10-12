@@ -23,13 +23,35 @@ from student_auth import (
 # =========================================================
 # PAGE CONFIGURATION
 # =========================================================
-
 st.set_page_config(
     page_title="Skillora AI | Career Intelligence",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+st.markdown("""
+<style>
+/* Professional Demo Login Button */
+div.stButton > button[kind="secondary"] {
+    background: linear-gradient(135deg, #1D4ED8, #2563EB);
+    color: #FFFFFF;
+    border: 1px solid #1D4ED8;
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+div.stButton > button[kind="secondary"]:hover {
+    background: linear-gradient(135deg, #1E40AF, #1D4ED8);
+    color: #FFFFFF;
+    border-color: #1E40AF;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 
 # =========================================================
@@ -380,6 +402,23 @@ if st.session_state.student is None:
             "Login",
             use_container_width=True
         )
+        # ---------- SHARED DEMO LOGIN ----------
+    demo_login = st.button(
+        "Try Demo Login",
+        use_container_width=True,
+    )
+
+    if demo_login:
+        st.session_state.student = {
+            "id": -1,
+            "full_name": "SkillOraAI Demo User",
+            "email": "demo@skilloraai.local",
+            "is_demo": True,
+        }
+        st.session_state.pop(
+            "skillora_progress_loaded_for", None
+        )
+        st.rerun()
 
     # ---------- LOGIN SECURITY & AUTHENTICATION ----------
     if login_submit:
@@ -506,6 +545,19 @@ if st.session_state.student is None:
                     type="primary",
                     use_container_width=True,
                 )
+            if st.button(
+                "🚀 Try Demo Login",
+                use_container_width=True,
+                type="secondary",
+                key="demo_login_button",
+            ):
+                st.session_state.student = {
+                    "id": -1,
+                    "full_name": "SkillOraAI Demo User",
+                    "email": "demo@skilloraai.local",
+                    "is_demo": True,
+                }
+                st.rerun()
 
             if submitted:
                 if not email.strip() or not password:
@@ -600,7 +652,6 @@ with st.sidebar:
     page = st.radio(
     "Choose a page",
     [
-        "Career Dashboard",
         "My Profile",
         "Explore Skills",
         "Skill Gap Analysis",
@@ -703,6 +754,15 @@ if page == "My Profile":
         st.warning("Please log in to view your profile.")
         st.stop()
 
+    is_demo = student.get("is_demo", False)
+
+if is_demo:
+    profile = {}
+    st.info(
+        "Demo Mode: Profile changes are temporary "
+        "and will not be saved to a student account."
+    )
+else:
     profile = load_student_profile(student["id"]) or {}
 
     st.title("👤 My Professional Profile")
@@ -880,37 +940,39 @@ if page == "My Profile":
             use_container_width=True,
         )
 
+    
     if save_clicked:
-        try:
-            # Save existing supported profile fields.
-            save_student_profile(
-                student["id"],
-                phone,
-                college,
-                course,
-                skills,
-                bio,
+        if student.get("is_demo", False):
+            st.warning(
+                "Demo Mode: Profile changes cannot be saved. "
+                "Create a student account to save your profile."
             )
-
-            # Location and achievements require corresponding database
-            # columns and an updated save_student_profile function.
-            if location.strip() or achievements.strip():
-                st.warning(
-                    "Your main profile was saved. Location and achievements "
-                    "will persist after the student_profiles database schema "
-                    "is updated to support these fields."
+        else:
+            try:
+                save_student_profile(
+                    student["id"],
+                    phone,
+                    college,
+                    course,
+                    skills,
+                    bio,
                 )
-            else:
-                st.success("Profile saved successfully!")
 
-            st.rerun()
+                if location.strip() or achievements.strip():
+                    st.warning(
+                        "Your main profile was saved. Location and "
+                        "achievements require database schema support."
+                    )
+                else:
+                    st.success("Profile saved successfully!")
 
-        except Exception as error:
-            st.error("Unable to save your profile. Please check student_auth.py.")
-            st.exception(error)
+                st.rerun()
 
-    st.divider()
-    st.subheader("💼 Professional Profile Checklist")
+            except Exception:
+                st.error(
+                    "Unable to save your profile. "
+                    "Please check student_auth.py."
+                )
 
     checklist = [
         ("Profile photo", bool(st.session_state.get(photo_key))),

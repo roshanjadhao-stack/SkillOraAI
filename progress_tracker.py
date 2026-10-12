@@ -21,7 +21,7 @@ DEFAULT_SKILLS = [
 
 
 def load_progress():
-    """Load saved skill progress from a local JSON file."""
+    """Load progress saved in the local JSON file."""
     if not PROGRESS_FILE.exists():
         return {}
 
@@ -34,7 +34,7 @@ def load_progress():
 
 
 def save_progress(progress):
-    """Save skill completion status locally."""
+    """Save progress to the local JSON file."""
     try:
         with PROGRESS_FILE.open("w", encoding="utf-8") as file:
             json.dump(progress, file, indent=4, ensure_ascii=False)
@@ -45,13 +45,24 @@ def save_progress(progress):
 
 
 def render_progress_tracker(roadmap_skills=None):
-    """Display a simple, persistent student skill tracker."""
+    """Show a session-only tracker for demo users."""
+    is_demo = (
+        st.session_state.get("student") or {}
+    ).get("is_demo", False)
+
     st.subheader("Student Progress Tracker")
     st.caption(
         "Track completed skills and continue learning at your own pace."
     )
 
-    saved_progress = load_progress()
+    # Demo progress stays in this Streamlit session.
+    if is_demo:
+        if "demo_skill_progress" not in st.session_state:
+            st.session_state["demo_skill_progress"] = {}
+
+        saved_progress = st.session_state["demo_skill_progress"]
+    else:
+        saved_progress = load_progress()
 
     skills = list(DEFAULT_SKILLS)
 
@@ -63,10 +74,10 @@ def render_progress_tracker(roadmap_skills=None):
                     skills.append(cleaned)
 
     if "custom_tracker_skills" not in st.session_state:
-        st.session_state.custom_tracker_skills = []
+        st.session_state["custom_tracker_skills"] = []
 
     if "tracker_add_input" not in st.session_state:
-        st.session_state.tracker_add_input = ""
+        st.session_state["tracker_add_input"] = ""
 
     with st.form("add_tracker_skill_form"):
         new_skill = st.text_input(
@@ -80,18 +91,18 @@ def render_progress_tracker(roadmap_skills=None):
         cleaned = new_skill.strip()
         existing = {
             skill.casefold()
-            for skill in skills + st.session_state.custom_tracker_skills
+            for skill in skills + st.session_state["custom_tracker_skills"]
         }
 
         if cleaned and cleaned.casefold() not in existing:
-            st.session_state.custom_tracker_skills.append(cleaned)
+            st.session_state["custom_tracker_skills"].append(cleaned)
             st.rerun()
         elif not cleaned:
             st.warning("Please enter a skill name.")
         else:
             st.info("This skill is already in your tracker.")
 
-    for skill in st.session_state.custom_tracker_skills:
+    for skill in st.session_state["custom_tracker_skills"]:
         if skill not in skills:
             skills.append(skill)
 
@@ -114,16 +125,27 @@ def render_progress_tracker(roadmap_skills=None):
         )
 
     if save_clicked:
-        if save_progress(completed):
+        if is_demo:
+            st.session_state["demo_skill_progress"] = completed
+            st.success(
+                "Demo progress saved for this session only."
+            )
+        elif save_progress(completed):
             st.success("Your learning progress has been saved!")
 
-    # Show saved progress, not unsaved checkbox changes.
-    current_progress = load_progress()
+    # Read from the correct storage source.
+    if is_demo:
+        current_progress = st.session_state["demo_skill_progress"]
+        st.info("Demo mode: progress is temporary and isn't saved to a student account.")
+    else:
+        current_progress = load_progress()
+
     total_skills = len(skills)
     completed_count = sum(
         bool(current_progress.get(skill, False))
         for skill in skills
     )
+
     percentage = (
         round(completed_count / total_skills * 100)
         if total_skills
